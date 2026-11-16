@@ -9,6 +9,7 @@
     <PackageTags>umbraco;umbraco-marketplace;telemetry;offline;backoffice</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageProjectUrl>https://github.com/auroris/UmbracoDisableTelemetry</PackageProjectUrl>
     <RepositoryUrl>https://github.com/auroris/UmbracoDisableTelemetry</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -23,6 +24,7 @@
     <InternalsVisibleTo Include="AurorisNet.Umbraco.DisableTelemetry.Tests" />
     <!-- nuget.org renders Markdown without HTML or relative links, so the package has its own README. -->
     <None Include="../docs/NUGET.md" Pack="true" PackagePath="README.md" />
+    <None Include="../docs/images/icon.png" Pack="true" PackagePath="/" />
     <None Include="../LICENSE" Pack="true" PackagePath="/" />
   </ItemGroup>
 </Project>
