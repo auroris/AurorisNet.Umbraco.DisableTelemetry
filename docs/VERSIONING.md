@@ -34,16 +34,23 @@ Local builds use count 0, which is never published.
 
 ## Publishing setup
 
-Complete these account settings before the first release:
+NuGet trusted publishing is configured for the `AurorisNet` account, the repository
+`auroris/UmbracoDisableTelemetry`, the workflow `release.yml` and no environment, so the
+Release workflow logs in to NuGet with a short-lived token and the repository holds no API
+key. Keep the workflow file at that name. See
+[NuGet trusted publishing](https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing).
 
-1. Configure NuGet trusted publishing for the `AurorisNet` account, the repository
-   `auroris/UmbracoDisableTelemetry`, the workflow `release.yml` and no environment. See
-   [NuGet trusted publishing](https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing).
-2. Enable private vulnerability reporting on GitHub, so the form in
-   [Security](../SECURITY.md) reaches the maintainers.
-3. Add a tag rule that keeps `v*` tags from being moved or deleted. NuGet keeps every
+Complete these GitHub settings before the first release:
+
+1. Enable private vulnerability reporting, so the form in [Security](../SECURITY.md)
+   reaches the maintainers.
+2. Add a tag rule that keeps `v*` tags from being moved or deleted. NuGet keeps every
    version it has published, so the workflow counts past every existing tag when it
    chooses the next count.
+3. Turn on **Settings → Actions → General → Workflow permissions → Allow GitHub Actions
+   to create and approve pull requests**, so the
+   [New Umbraco releases workflow](DEVELOPING.md#new-umbraco-releases-workflow) can open
+   its pull requests.
 
 ## Publish a release
 

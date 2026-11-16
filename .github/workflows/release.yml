@@ -27,7 +27,7 @@ jobs:
   release:
     name: Build and publish
     runs-on: windows-latest
-    # The tests run before a release, locally, as docs/DEVELOPING.md describes, so
+    # The tests run before a release, locally or in the New Umbraco releases workflow, as docs/DEVELOPING.md describes, so
     # this job only builds and publishes.
     timeout-minutes: 30
     permissions:

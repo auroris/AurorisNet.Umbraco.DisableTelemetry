@@ -12,6 +12,9 @@ registration test, a live-site test and the fixture that hosts the site.
   Platform runner.
 - Playwright Chromium for the [browser check](#browser-check).
 - Pester 5 for the [workflow script tests](#workflow-scripts).
+- On Windows, a short clone path. Playwright's package nests deeply, and the build fails
+  with `MSB3021` when a path exceeds 260 characters unless long paths are enabled. The
+  same limit applies to `-ArtifactsPath` in `Test-UmbracoReleases.ps1`.
 
 ## Build
 
@@ -103,53 +106,125 @@ Without `-Releases`, it tests every release in `UmbracoReleases`. Builds run one
 time, because Umbraco writes schemas into the project directory, and up to four test
 processes run at once; `-Throttle 1` runs them one at a time. Each test process has a
 four-minute timeout. The script writes each release's build and test logs under
-`artifacts/umbraco-releases/<release>`, writes the summary to
-`artifacts/umbraco-releases/results.json`, prints one line per release and exits with 1
-when any release fails.
+`artifacts/umbraco-releases/<release>`, prints one line per release and exits with 1
+when any release fails. It also writes a JSON summary with each release's result, test
+counts and failed tests to `artifacts/umbraco-releases/results.json`, or to the file
+`-SummaryPath` names. The New Umbraco releases workflow reads that summary.
 
 ## Support a new Umbraco release
 
 The package supports an Umbraco release once `UmbracoReleases` lists it and the tests pass
-on it, with and without the browser check:
+on it, with and without the browser check.
 
-1. Run the tests on the release before listing it:
+### New Umbraco releases workflow
+
+The **New Umbraco releases** workflow looks on NuGet every day for stable releases of the
+supported major versions that are newer than the newest listed one, and runs the tests on
+them with and without the browser check:
+
+- Releases that pass are listed on a branch named `umbraco-releases/<releases>`, with a
+  pull request. Merge it, then [publish a release](VERSIONING.md#publish-a-release).
+  While the branch exists, later runs skip its releases, and GitHub deletes it when the
+  pull request merges. To test a release again after closing its pull request unmerged,
+  delete the branch.
+- A release that fails gets an issue titled `Umbraco <release> fails the tests`, which
+  links the run. The run's artifacts hold the build and test logs. Fix the cause as
+  [Add a release by hand](#add-a-release-by-hand) describes. Closing the issue lets the
+  next run test the release again.
+- A stable release of a newer major version gets an issue titled
+  `Support Umbraco <major>`, for the steps in
+  [Support a new Umbraco major version](#support-a-new-umbraco-major-version).
+
+The workflow opens pull requests once **Settings → Actions → General → Workflow
+permissions → Allow GitHub Actions to create and approve pull requests** is on. Until
+then, it pushes the branch and opens an issue that links it. To test chosen releases, or
+to see the results without opening anything, run it from **Actions → New Umbraco
+releases → Run workflow** with its `releases` and `dry-run` inputs.
+
+The workflow keeps the tests apart from the reporting. Its test job builds and runs
+releases that NuGet has only just published, so that job can only read the repository
+and holds no token. A separate job reads the two summaries the tests wrote, then opens
+the pull request and the issues. GitHub disables a scheduled workflow after 60 days
+without activity in the repository, so each scheduled run also enables the workflow
+again, which restarts that count.
+
+### Add a release by hand
+
+1. List the release:
+
+   ```powershell
+   pwsh .github/scripts/Add-UmbracoRelease.ps1 -Releases 18.3.2
+   ```
+
+   The script adds it to `UmbracoReleases`. When it is the newest release, the script
+   also sets `UmbracoMaximumVersion` and `UmbracoVersion` to it, so the dependency range
+   and the default test build include it. Then it updates the supported releases in
+   `README.md` and `docs/NUGET.md`.
+2. Run the tests on it, with and without the browser check:
 
    ```powershell
    pwsh tests/Test-UmbracoReleases.ps1 -Releases 18.3.2
    pwsh tests/Test-UmbracoReleases.ps1 -Releases 18.3.2 -Browser
    ```
 
-2. Check the Umbraco source for the extension points the package relies on. The
-   registration matches `IRecurringBackgroundJob` registrations whose implementation type
-   is `ReportSiteJob`, so a changed registration needs a review of the registration code.
-   Installer reports must still go through `IInstallationService`, and the news dashboard
-   must still read `INewsDashboardService` and show its fallback for an empty feed.
-3. Add the release to `UmbracoReleases` in [`Directory.Build.props`](../Directory.Build.props).
-   When it is the newest release, also set `UmbracoMaximumVersion` and `UmbracoVersion` to
-   it, so the dependency range and the default test build include it.
-4. Update the supported-versions table in `README.md` and the supported releases in
-   `docs/NUGET.md`.
+3. When a test fails, check the Umbraco source for the extension points the package relies
+   on. The registration matches `IRecurringBackgroundJob` registrations whose
+   implementation type is `ReportSiteJob`, so a changed registration needs a review of the
+   registration code. Installer reports must still go through `IInstallationService`, and
+   the news dashboard must still read `INewsDashboardService` and show its fallback for an
+   empty feed. Fix the package, then run the tests again.
 
 The same steps extend support to an older release.
 
+## Support a new Umbraco major version
+
+The add script accepts only the major versions already listed, so a new major version
+starts by hand:
+
+1. Check the new major version's target framework. When it runs on a newer .NET, install
+   that SDK, add it to the workflows' `setup-dotnet` steps, raise the SDK version in
+   `global.json` to match, and target both frameworks in the package project.
+2. List the first release of the major version in `UmbracoReleases` by hand. Add a row to
+   the README's supported-versions table with an `<!-- umbraco-releases 19 -->` marker,
+   and add the release to the supported releases in `docs/NUGET.md`. Update the other
+   text that names the supported major versions, including the repository's description
+   on GitHub.
+3. Continue from step 2 of [Add a release by hand](#add-a-release-by-hand).
+
 ## Workflow scripts
 
-The Release workflow runs the scripts in `.github/scripts`: `Get-ReleaseVersion.ps1`
-chooses the package versions and tags, and `Test-LatestRelease.ps1` decides whether a
-GitHub release is marked as the latest. Test them with Pester 5:
+The workflows run the scripts in `.github/scripts`:
+
+| Script | Used by | Does |
+|---|---|---|
+| `Find-UmbracoReleases.ps1` | New Umbraco releases | Compares `UmbracoReleases` with the Umbraco.Cms versions on NuGet and returns the new releases and any newer major version. |
+| `Add-UmbracoRelease.ps1` | New Umbraco releases, and by hand | Lists releases in `Directory.Build.props`, `README.md` and `docs/NUGET.md`. |
+| `Submit-UmbracoReleaseResults.ps1` | New Umbraco releases | Reads the test summaries, then opens the pull request and the issues. |
+| `Get-ReleaseVersion.ps1` | Release | Chooses each package version's count from the release tags. |
+| `Test-LatestRelease.ps1` | Release | Decides whether a GitHub release is marked as the latest. |
+
+Test them with Pester 5.7.1:
 
 ```powershell
+Install-Module Pester -RequiredVersion 5.7.1 -Scope CurrentUser -Force -SkipPublisherCheck
+Import-Module Pester -RequiredVersion 5.7.1
 Invoke-Pester .github/scripts -CI
 ```
 
 The tests work in disposable folders and Git repositories, so this repository and GitHub
-stay untouched. The workflow pins each action to a commit, with its version in a comment
-beside it. Pin the hash of a commit: a version tag can have a hash of its own, which stops
-resolving once the tag moves to a later release.
+stay untouched.
+
+The workflows pin each action to a commit, with its version in a comment beside it.
+Dependabot opens a pull request when an action publishes a newer release. Pin the hash
+of a commit: a version tag can have a hash of its own, which stops resolving once the
+tag moves to a later release.
 
 ## Documents
 
 - `docs/NUGET.md` is the package's page on nuget.org, which shows Markdown without HTML or
-  relative links. Keep its supported releases in step with the README table.
+  relative links. `Add-UmbracoRelease.ps1` rewrites its list of supported releases after
+  "running Umbraco".
+- The README's supported-versions table marks each major version's releases with
+  `umbraco-releases` comments, which `Add-UmbracoRelease.ps1` rewrites.
 - `docs/VALIDATION.md` records a test run: its date, environment, results and limits.
   Update it after validating a changed set of releases.

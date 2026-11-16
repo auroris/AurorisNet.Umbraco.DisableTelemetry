@@ -41,8 +41,8 @@ keep their network behavior and the tests.
 
 | Umbraco | Tested and supported releases | Package versions | Runtime |
 |---|---|---|---|
-| 18 | 18.0.0 to 18.3.1 | `18.*` | .NET 10 |
-| 17 | 17.0.0 to 17.8.1 | `17.*` | .NET 10 |
+| 18 | <!-- umbraco-releases 18 -->18.0.0 to 18.3.1<!-- /umbraco-releases --> | `18.*` | .NET 10 |
+| 17 | <!-- umbraco-releases 17 -->17.0.0 to 17.8.1<!-- /umbraco-releases --> | `17.*` | .NET 10 |
 
 [`UmbracoReleases`](Directory.Build.props) lists each tested release. NuGet's dependency
 range spans the oldest and newest of these. Check this table to see whether your Umbraco

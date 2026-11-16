@@ -1,0 +1,193 @@
+name: New Umbraco releases
+
+# Looks for new releases of the Umbraco major versions the package supports each day, and runs the tests on them, with
+# and without the browser check. A release that passes gets a pull request that adds it to UmbracoReleases; one that
+# fails gets an issue. Publishing a package that lists a new release stays a manual run of the Release workflow.
+on:
+  schedule:
+    - cron: '23 6 * * *'
+  workflow_dispatch:
+    inputs:
+      releases:
+        description: Releases to test instead of the new ones, separated by commas, such as 18.3.2,17.8.2
+        required: false
+        default: ''
+      dry-run:
+        description: Show the results in the run only, without opening a pull request or issue
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: umbraco-releases
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: pwsh
+
+jobs:
+  # GitHub disables a scheduled workflow in a public repository after 60 days without activity there. Enabling the
+  # workflow again restarts that count, so the daily check keeps running while Umbraco publishes nothing. The job has
+  # the only token here that can change workflows, and it runs this one command.
+  keep-enabled:
+    name: Keep the schedule enabled
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    continue-on-error: true
+    permissions:
+      actions: write
+    steps:
+      - name: Enable the workflow again
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow enable umbraco-releases.yml --repo $env:GITHUB_REPOSITORY
+
+  find:
+    name: Find new releases
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    outputs:
+      releases: ${{ steps.find.outputs.releases }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REQUESTED: ${{ inputs.releases }}
+      DRY_RUN: ${{ inputs.dry-run }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Find the releases to test
+        id: find
+        run: |
+          $split = [StringSplitOptions]::RemoveEmptyEntries -bor [StringSplitOptions]::TrimEntries
+          $found = & .github/scripts/Find-UmbracoReleases.ps1
+          if ($env:REQUESTED) {
+            $releases = @($env:REQUESTED.Split(',', $split))
+          }
+          else {
+            # Skip a release whose pull request branch waits for review, or whose failure issue is still open.
+            $waiting = @(git ls-remote --heads origin 'umbraco-releases/*' | ForEach-Object { ($_ -split 'refs/heads/umbraco-releases/')[1] -split '-' })
+            $failing = @(gh issue list --state open --search 'fails the tests in:title' --json title | ConvertFrom-Json |
+              ForEach-Object { if ($_.title -match '^Umbraco (\S+) fails the tests$') { $Matches[1] } })
+            $releases = @($found.Releases | Where-Object { $_ -notin $waiting -and $_ -notin $failing })
+          }
+          Write-Host "New on NuGet: $($found.Releases -join ', ')"
+          Write-Host "To test: $($releases -join ', ')"
+          "releases=$($releases -join ',')" >> $env:GITHUB_OUTPUT
+
+          # A new major version needs code changes before it can be tested, so it gets an issue instead.
+          foreach ($release in $found.NewMajors) {
+            $title = "Support Umbraco $(([version] $release).Major)"
+            $open = gh issue list --state open --search "$title in:title" --json title | ConvertFrom-Json | Where-Object title -eq $title
+            if ($open -or $env:DRY_RUN -eq 'true') { Write-Host "$title, for $($release): $($open ? 'its issue is open' : 'dry run')"; continue }
+            gh issue create --title $title --body "NuGet has Umbraco $release, a major version the package does not support yet. docs/DEVELOPING.md lists the steps to add one."
+          }
+
+  # Builds and runs releases that NuGet published only just now, with everything they depend on. So this job can only
+  # read the repository, keeps no token in its checkout and has none in its environment. The report job acts on what
+  # it finds. A build or test that fails leaves this job successful, and the report job turns the failure into an issue.
+  test:
+    name: Test ${{ needs.find.outputs.releases }}
+    needs: find
+    if: needs.find.outputs.releases != ''
+    runs-on: windows-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    env:
+      RELEASES: ${{ needs.find.outputs.releases }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # global.json keeps the build on a .NET 10 SDK, whichever other SDKs the runner has.
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: '10.0.x'
+
+      # The tests build against the listed releases, so list the releases under test first.
+      - name: List the releases for the tests
+        id: add
+        run: .github/scripts/Add-UmbracoRelease.ps1 -Releases $env:RELEASES
+
+      - name: Install Chromium
+        id: chromium
+        continue-on-error: true
+        run: |
+          dotnet build tests/AurorisNet.Umbraco.DisableTelemetry.Tests -c Release -nologo
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pwsh tests/AurorisNet.Umbraco.DisableTelemetry.Tests/bin/Release/net10.0/playwright.ps1 install chromium
+
+      - name: Run the tests
+        if: ${{ !cancelled() && steps.add.outcome == 'success' }}
+        continue-on-error: true
+        run: pwsh tests/Test-UmbracoReleases.ps1 -Releases $env:RELEASES -SummaryPath artifacts/quick.json
+
+      - name: Run the tests with the browser check
+        if: ${{ !cancelled() && steps.add.outcome == 'success' && steps.chromium.outcome == 'success' }}
+        continue-on-error: true
+        run: pwsh tests/Test-UmbracoReleases.ps1 -Releases $env:RELEASES -Browser -SummaryPath artifacts/browser.json
+
+      - name: Keep the logs
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: umbraco-releases-${{ github.run_id }}
+          path: |
+            artifacts/*.json
+            artifacts/umbraco-releases/*/*.log
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # The summaries alone, which is all the report job reads from this job.
+      - name: Pass the results to the report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: umbraco-release-results-${{ github.run_id }}
+          path: artifacts/*.json
+          if-no-files-found: ignore
+          retention-days: 30
+
+  # Opens the pull request and the issues. This job has the token that can write to the repository, and it runs none of
+  # the code under test: it reads the two summaries, lists the releases that passed, and reports. It runs when the test
+  # job could list the releases, whatever the tests' results.
+  report:
+    name: Report the results
+    needs: [find, test]
+    runs-on: windows-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASES: ${{ needs.find.outputs.releases }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      DRY_RUN: ${{ inputs.dry-run }}
+    steps:
+      # The checkout keeps its token, which pushes the branch for the releases that passed.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # A summary that is missing, as when its tests never ran, fails every release in the report.
+      - name: Fetch the results
+        continue-on-error: true
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: umbraco-release-results-${{ github.run_id }}
+          path: artifacts
+
+      - name: Open a pull request for the releases that passed, and an issue for each that failed
+        run: |
+          .github/scripts/Submit-UmbracoReleaseResults.ps1 -Releases $env:RELEASES -Summaries artifacts/quick.json, artifacts/browser.json `
+            -RunUrl $env:RUN_URL -DryRun:($env:DRY_RUN -eq 'true')

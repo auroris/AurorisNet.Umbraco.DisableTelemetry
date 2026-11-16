@@ -15,7 +15,7 @@ tests, and [Behavior and compatibility](BEHAVIOR.md#testing) summarizes what the
 | Avatar upload, five image sizes and removal | Passed on every release |
 | Installer reporting and news services | Replacements resolved; reports completed on the server, and repeated news requests returned empty feeds |
 | Telemetry job and HTTP request checks | Job absent; no telemetry, installer reporting, news or Gravatar attempts observed |
-| Release version and latest-release scripts | Prior validation: 30 Pester tests passed; scripts unchanged since |
+| Workflow scripts | 46 Pester tests passed, covering the release version, latest-release, release-finding, release-adding and result-reporting scripts |
 | Marketplace metadata | Prior validation: passed the published Marketplace JSON schema; metadata unchanged since |
 | Local packages | Both major-version variants built and inspected |
 
@@ -52,7 +52,8 @@ Older Umbraco test hosts emitted NuGet audit warnings for their own dependency g
 The package's release builds completed without warnings. Compatibility coverage leaves the
 security support status of an older Umbraco release unchanged.
 
-The package and release workflow were prepared locally. GitHub publishing, NuGet trusted
-publishing and the Marketplace listing remain unexercised for this repository. The checks
+The package and release workflow were prepared locally, and NuGet trusted publishing is
+configured for `release.yml`. A release has yet to run, so the workflow's NuGet push,
+its GitHub releases and the Marketplace listing remain unexercised for this repository. The checks
 cover the Umbraco paths the tests exercise: the telemetry job, installer reporting and the
 news feed. Third-party packages and operating-system traffic are outside their scope.
