@@ -1,8 +1,7 @@
 # Umbraco Disable Telemetry
 
-Offline reporting for Umbraco 17 and 18 sites. The package stops the telemetry beacon,
-installer reports and dashboard news requests on a server without internet access, and
-the other background jobs keep running.
+Disables reporting for Umbraco 17 and 18 sites. The package stops the telemetry beacon,
+installer reports and dashboard news requests on a server without internet access.
 
 ## What it does
 
@@ -14,8 +13,6 @@ the other background jobs keep running.
 - **The news dashboard opens at once.** It shows Umbraco's built-in resource links in
   place of the remote feed, so an offline server sees no feed timeouts or repeated error
   logs.
-- **Other background jobs keep running.** Scheduled publishing, temp-file cleanup and the
-  other recurring jobs keep their registrations.
 
 The package changes service registrations through Umbraco's public extension points, and
 installing it is the whole setup.

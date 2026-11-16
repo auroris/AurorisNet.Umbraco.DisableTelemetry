@@ -226,5 +226,3 @@ tag moves to a later release.
   "running Umbraco".
 - The README's supported-versions table marks each major version's releases with
   `umbraco-releases` comments, which `Add-UmbracoRelease.ps1` rewrites.
-- `docs/VALIDATION.md` records a test run: its date, environment, results and limits.
-  Update it after validating a changed set of releases.

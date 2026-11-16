@@ -84,7 +84,6 @@ release is published.
 | [Behavior and compatibility](docs/BEHAVIOR.md) | What the package changes, which features keep their network behavior, and test coverage. |
 | [Developing](docs/DEVELOPING.md) | Building, testing and adding Umbraco releases. |
 | [Version numbering and releases](docs/VERSIONING.md) | How versions are numbered and how a release is published. |
-| [Validation](docs/VALIDATION.md) | The test run of 15 November 2026: environment, results and limits. |
 
 ## License
 

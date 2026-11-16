@@ -32,9 +32,6 @@ installer reporting and the news feed. These features keep their normal behavior
 - **Update checks on Umbraco 17.0.x** run from the backoffice. Set
   `Umbraco:CMS:Global:VersionCheckPeriod` to `0` to switch them off. Umbraco 17.1 and
   later make the update-check sender a no-op, so the setting matters on 17.0.x only.
-- **User avatars** come from the site's media. Umbraco 17 and 18 serve uploaded avatars
-  and return an empty avatar list for users without one, so user management works
-  offline without a Gravatar patch.
 
 ## Replacing an existing telemetry composer
 
@@ -58,5 +55,4 @@ The test site records every outgoing request. The HTTP client factory handler re
 and rejects requests, and a .NET HTTP event listener observes directly constructed
 clients, including the static clients of early Umbraco releases. Successful local avatar
 downloads prove that the listener is recording. The browser check records and blocks
-external browser requests. A test fails on any telemetry, installer reporting, news or
-Gravatar attempt. [Validation](VALIDATION.md) records the latest run.
+external browser requests. A test fails on any telemetry, installer reporting or news.
