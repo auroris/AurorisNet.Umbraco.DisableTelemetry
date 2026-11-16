@@ -21,7 +21,8 @@
     <PackageReference Include="Umbraco.Cms.Infrastructure" />
     <PackageReference Include="Umbraco.Cms.Api.Management" />
     <InternalsVisibleTo Include="AurorisNet.Umbraco.DisableTelemetry.Tests" />
-    <None Include="../README.md" Pack="true" PackagePath="README.md" />
+    <!-- nuget.org renders Markdown without HTML or relative links, so the package has its own README. -->
+    <None Include="../docs/NUGET.md" Pack="true" PackagePath="README.md" />
     <None Include="../LICENSE" Pack="true" PackagePath="/" />
   </ItemGroup>
 </Project>

@@ -1,51 +1,82 @@
 # Version numbering and releases
 
-A package version is `<newest supported Umbraco release>.<release count>`. A release
-publishes the same implementation under one version for each supported major version:
+A package version is `<newest supported Umbraco release>.<release count>`. Version
+`18.3.1.1` supports every Umbraco 18 release up to 18.3.1, and it is our first release
+for 18.3.1.
 
-| Initial version | Site package reference |
+## One version per Umbraco major version
+
+Each release publishes one version for each supported Umbraco major version, built from
+the same source:
+
+| Version | Supports |
 |---|---|
-| `18.3.1.1` | `18.*` |
-| `17.8.1.1` | `17.*` |
+| `18.3.1.1` | Every Umbraco 18 release up to 18.3.1 |
+| `17.8.1.1` | Every Umbraco 17 release up to 17.8.1 |
 
-Both packages depend on the full supported Umbraco range. The major version in their
-number lets sites follow their own Umbraco version when choosing updates. Counts start
-at 1 and increase independently. Adding support for 18.3.2 starts `18.3.2.1`; another
-release for 17.8.1 increments its existing count. Local builds use count 0.
+Reference your site's major version, such as `18.*` or `17.*`, so NuGet installs the
+newest package for it. Both versions of a release depend on the whole supported range,
+from the oldest supported Umbraco release to the newest, so either one installs on
+Umbraco 17 or 18. The [supported-versions table](../README.md#supported-versions) lists
+the tested releases.
+
+## Release counts
+
+The count starts at 1 for each Umbraco release, and each major version counts on its
+own:
+
+- Adding Umbraco 18.3.2 makes the next Umbraco 18 version `18.3.2.1`. The Umbraco 17
+  version of the same release takes its next count, `17.8.1.2`.
+- Adding Umbraco 17.8.2 makes the next Umbraco 17 version `17.8.2.1`. The Umbraco 18
+  version takes its next count.
+
+Local builds use count 0, which is never published.
 
 ## Publishing setup
 
-Before publishing the first release:
+Complete these account settings before the first release:
 
-1. Create the GitHub repository `auroris/UmbracoDisableTelemetry` and push `main`.
-2. Configure NuGet trusted publishing for the `AurorisNet` account, repository
-   `auroris/UmbracoDisableTelemetry`, workflow `release.yml`, and no environment.
-3. Enable private vulnerability reporting on GitHub and protect `v*` tags from deletion
-   or replacement. NuGet retains published versions, so release tags must remain available
-   for choosing the next count.
+1. Configure NuGet trusted publishing for the `AurorisNet` account, the repository
+   `auroris/UmbracoDisableTelemetry`, the workflow `release.yml` and no environment. See
+   [NuGet trusted publishing](https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing).
+2. Enable private vulnerability reporting on GitHub, so the form in
+   [Security](../SECURITY.md) reaches the maintainers.
+3. Add a tag rule that keeps `v*` tags from being moved or deleted. NuGet keeps every
+   version it has published, so the workflow counts past every existing tag when it
+   chooses the next count.
 
-The workflow and metadata are prepared locally; these account settings must be completed
-before a real release. See [NuGet trusted publishing](https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing).
+## Publish a release
 
-## Publish
+Run the [compatibility matrix](DEVELOPING.md#test-other-umbraco-releases) first. Then open
+**Actions → Release → Run workflow** on GitHub and select `main`. Pushes never start a
+release, and the workflow runs no tests, because each Umbraco release was tested when it
+was added. It:
 
-Run the compatibility matrix before releasing. The manual **Actions → Release → Run
-workflow** action builds and publishes; it does not repeat the tests. Pushes never
-publish packages.
+1. chooses each version's count from the release tags;
+2. builds and packs each version, and stops on any build warning;
+3. reserves a tag for each, such as `v18.3.1.1` and `v17.8.1.1`, before publishing any;
+4. publishes each package to NuGet and creates a GitHub release for each. The Umbraco 18
+   release is marked as the latest, and the Umbraco 17 release points to it.
 
-Choose `main`. Use **dry-run** to build both packages and retain them as a workflow
-artifact before publishing. On a real run, the workflow reserves both release tags,
-logs in to NuGet with trusted publishing, pushes the packages, and creates GitHub
-releases. The Umbraco 18 version is marked as latest unless a newer release already
-exists. A retry reuses tags for that commit and skips packages NuGet already has.
+The workflow has two inputs:
 
-The optional **notes** input supplies release notes above GitHub's generated list of
-changes. Record changes committed directly to `main` there too.
+- **dry-run** stops after step 2 and keeps the packages as an artifact of the run, named
+  `packages-<run>`. Nothing is tagged or published, so use it to see what a release of
+  `main` would publish, or to try a change to the workflow.
+- **notes** is Markdown for the GitHub release. The workflow places it above GitHub's
+  generated list of changes, which names merged pull requests only. Describe changes
+  that were committed to `main` directly, and anything a site must do when it updates.
 
-## Marketplace
+Running Release again for a tagged commit reuses its tags and skips the packages NuGet
+already has, so a partial publication can finish. A new count goes only to the tip of
+`main`. When a newer release is published already, the retried one leaves it marked as the
+latest.
 
-The package carries the `umbraco-marketplace` tag. `umbraco-marketplace.json` supplies
-its category, licence and documentation links. Publish that metadata on `main` before
-releasing, then check the listing with the
+## Marketplace listing
+
+The package carries the `umbraco-marketplace` tag, and Umbraco Marketplace reads
+[`umbraco-marketplace.json`](../umbraco-marketplace.json) from `main` for its category,
+license, documentation link and issue tracker. Push changes to that file before
+releasing. After publishing, check the listing with the
 [Marketplace validation tools](https://marketplace.umbraco.com/validate) and package ID
 `AurorisNet.Umbraco.DisableTelemetry`.
