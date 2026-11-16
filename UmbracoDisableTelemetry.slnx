@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="src/AurorisNet.Umbraco.DisableTelemetry.csproj" />
+  <Project Path="tests/AurorisNet.Umbraco.DisableTelemetry.Tests/AurorisNet.Umbraco.DisableTelemetry.Tests.csproj" />
+</Solution>

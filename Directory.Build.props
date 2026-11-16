@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <!-- Every stable release verified by tests/Test-UmbracoReleases.ps1. -->
+    <UmbracoReleases>17.0.0;17.0.1;17.0.2;17.1.0;17.2.0;17.2.1;17.2.2;17.3.0;17.3.1;17.3.2;17.3.3;17.3.4;17.3.5;17.4.0;17.4.1;17.4.2;17.5.0;17.5.1;17.5.2;17.5.3;17.6.0;17.6.1;17.6.2;17.7.0;17.7.1;17.7.2;17.8.0;17.8.1;18.0.0;18.0.1;18.0.2;18.1.0;18.1.1;18.2.0;18.2.1;18.2.2;18.3.0;18.3.1</UmbracoReleases>
+    <UmbracoMinimumVersion>17.0.0</UmbracoMinimumVersion>
+    <UmbracoMaximumVersion>18.3.1</UmbracoMaximumVersion>
+    <UmbracoVersion>18.3.1</UmbracoVersion>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(ContinuousIntegrationBuild)' == 'true'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1900;NU1901;NU1902;NU1903;NU1904;NU1905</WarningsNotAsErrors>
+  </PropertyGroup>
+</Project>
