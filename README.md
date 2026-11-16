@@ -21,16 +21,14 @@
 without internet access. It registers itself through Umbraco's composers, and installing
 it is the whole setup.
 
-- **The telemetry beacon stays off.** Umbraco's **Minimal** telemetry level still sends a
+- **Disables the Telemetry beacon.** Umbraco's **Minimal** telemetry level still sends a
   site identifier. The package removes the scheduled job that sends it, along with the
   version and package reports of the higher levels.
 - **Installer and upgrade reports complete locally.** Umbraco 17.0.x sends a report after
   installation and upgrade; the package completes it on the server.
-- **The news dashboard opens at once.** It shows Umbraco's built-in resource links in
+- **Disables live fetching of the News dashboard.** It shows Umbraco's built-in resource links in
   place of the remote feed, so an offline server sees no feed timeouts or repeated error
   logs.
-- **Other background jobs keep running.** Scheduled publishing, temp-file cleanup and the
-  other recurring jobs keep their registrations.
 
 The package changes service registrations through Umbraco's public extension points.
 [Behavior and compatibility](docs/BEHAVIOR.md) describes each change, the features that
