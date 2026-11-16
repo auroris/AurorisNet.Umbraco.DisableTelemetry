@@ -1,7 +1,6 @@
 <h1 align="center">Umbraco Disable Telemetry</h1>
 
 <p align="center">
-  Offline reporting for Umbraco 17 and 18 sites.<br>
   Stop the telemetry beacon, installer reports and dashboard news requests on a server without internet access.
 </p>
 
