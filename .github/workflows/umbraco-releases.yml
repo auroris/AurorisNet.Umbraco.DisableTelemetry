@@ -3,6 +3,8 @@ name: New Umbraco releases
 # Looks for new releases of the Umbraco major versions the package supports each day, and runs the tests on them, with
 # and without the browser check. A release that passes gets a pull request that adds it to UmbracoReleases; one that
 # fails gets an issue. Publishing a package that lists a new release stays a manual run of the Release workflow.
+# The pull request needs Settings > Actions > General > Workflow permissions > Allow GitHub Actions to create and
+# approve pull requests; without it, the workflow pushes the branch and opens an issue that links it.
 on:
   schedule:
     - cron: '23 6 * * *'
@@ -88,7 +90,7 @@ jobs:
             $title = "Support Umbraco $(([version] $release).Major)"
             $open = gh issue list --state open --search "$title in:title" --json title | ConvertFrom-Json | Where-Object title -eq $title
             if ($open -or $env:DRY_RUN -eq 'true') { Write-Host "$title, for $($release): $($open ? 'its issue is open' : 'dry run')"; continue }
-            gh issue create --title $title --body "NuGet has Umbraco $release, a major version the package does not support yet. docs/DEVELOPING.md lists the steps to add one."
+            gh issue create --title $title --body "NuGet has Umbraco $release, a major version the package does not support yet. The README's Developing section lists the steps to add one."
           }
 
   # Builds and runs releases that NuGet published only just now, with everything they depend on. So this job can only

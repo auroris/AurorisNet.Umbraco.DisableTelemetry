@@ -27,8 +27,8 @@ jobs:
   release:
     name: Build and publish
     runs-on: windows-latest
-    # The tests run before a release, locally or in the New Umbraco releases workflow, as docs/DEVELOPING.md describes, so
-    # this job only builds and publishes.
+    # The tests run before a release, locally or in the New Umbraco releases workflow, as the README's Developing
+    # section describes, so this job only builds and publishes.
     timeout-minutes: 30
     permissions:
       contents: write
@@ -101,6 +101,9 @@ jobs:
             }
           }
 
+      # nuget.org trusts the AurorisNet account, the repository auroris/UmbracoDisableTelemetry, this workflow's file name
+      # release.yml and no environment, so the repository holds no API key. Keep the file name, and keep the repository's
+      # tag rule that stops v* tags from being moved or deleted: the version step counts past every existing tag.
       - name: Log in to NuGet with trusted publishing
         if: ${{ !inputs.dry-run }}
         id: nuget-login

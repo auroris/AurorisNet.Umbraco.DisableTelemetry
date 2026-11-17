@@ -22,9 +22,10 @@
     <PackageReference Include="Umbraco.Cms.Infrastructure" />
     <PackageReference Include="Umbraco.Cms.Api.Management" />
     <InternalsVisibleTo Include="AurorisNet.Umbraco.DisableTelemetry.Tests" />
-    <!-- nuget.org renders Markdown without HTML or relative links, so the package has its own README. -->
-    <None Include="../docs/NUGET.md" Pack="true" PackagePath="README.md" />
+    <!-- nuget.org removes HTML comments before rendering, so the umbraco-releases markers in the README stay hidden there. -->
+    <None Include="../README.md" Pack="true" PackagePath="/" />
     <None Include="../docs/images/icon.png" Pack="true" PackagePath="/" />
     <None Include="../LICENSE" Pack="true" PackagePath="/" />
   </ItemGroup>
+
 </Project>

@@ -15,7 +15,8 @@ The Umbraco releases to test, such as 18.3.1. Defaults to every release in Umbra
 
 .PARAMETER Browser
 Also signs in to the backoffice in Chromium, checks the news dashboard's fallback and opens the Users collection.
-Install Playwright Chromium first, as docs/DEVELOPING.md describes.
+Install Chromium once after dotnet build -c Release, and again after upgrading Playwright:
+    pwsh tests/AurorisNet.Umbraco.DisableTelemetry.Tests/bin/Release/net10.0/playwright.ps1 install chromium
 
 .PARAMETER Configuration
 The build configuration. Defaults to Release.

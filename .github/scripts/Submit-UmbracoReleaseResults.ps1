@@ -7,7 +7,7 @@ an issue for each release that failed.
 .DESCRIPTION
 Reads the summaries that tests/Test-UmbracoReleases.ps1 wrote with -SummaryPath. A release passed when it passed in
 every summary; a missing summary, from a step that never ran, fails every release. For the releases that passed, the
-script restores Directory.Build.props and the documents from the last commit, adds the releases with
+script restores Directory.Build.props and README.md from the last commit, adds the releases with
 Add-UmbracoRelease.ps1, commits the change on a new branch, pushes it and opens a pull request. GitHub refuses pull
 requests from workflows unless the repository allows them, so it then opens an issue that links the branch instead.
 For each release that failed, it opens an issue, or comments on the open issue with the same title. With -DryRun it
@@ -142,7 +142,7 @@ elseif ($passed) {
     Push-Location $repository
     try {
         # The tests ran with every tested release listed. Start again from the commit and add only those that passed.
-        Invoke-Checked git @('checkout', '--', 'Directory.Build.props', 'README.md', 'docs')
+        Invoke-Checked git @('checkout', '--', 'Directory.Build.props', 'README.md')
         $added = @(& (Join-Path $PSScriptRoot 'Add-UmbracoRelease.ps1') -Releases $passed)
         if ($added) {
             $names = $added -join ', '
@@ -151,7 +151,7 @@ elseif ($passed) {
             Invoke-Checked git @('config', 'user.name', 'github-actions[bot]')
             Invoke-Checked git @('config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com')
             Invoke-Checked git @('switch', '-c', $branch)
-            Invoke-Checked git @('add', '--', 'Directory.Build.props', 'README.md', 'docs')
+            Invoke-Checked git @('add', '--', 'Directory.Build.props', 'README.md')
             Invoke-Checked git @('commit', '-m', "Add Umbraco $names", '-m', "The tests passed on $names with and without the browser check.")
             Invoke-Checked git @('push', 'origin', $branch)
             $file = New-TemporaryFile

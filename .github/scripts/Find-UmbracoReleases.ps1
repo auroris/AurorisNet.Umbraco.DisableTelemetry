@@ -7,7 +7,7 @@ Finds Umbraco releases on NuGet that the package does not list yet.
 Reads UmbracoReleases from Directory.Build.props and compares it with the published versions of Umbraco.Cms. A
 release is new when it is a stable release of a supported major version and newer than the newest listed release of
 that major version; older releases that the list leaves out were left out on purpose. A stable release of a newer major
-version is reported separately, because supporting it takes the changes that docs/DEVELOPING.md describes. Prereleases
+version is reported separately, because supporting it takes the steps in the README's Developing section. Prereleases
 are ignored.
 
 .PARAMETER Published
