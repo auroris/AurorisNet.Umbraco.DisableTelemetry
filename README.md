@@ -41,8 +41,8 @@ news feed.
 
 | Umbraco | Tested and supported releases | Package versions | Runtime |
 |---|---|---|---|
-| 18 | <!-- umbraco-releases 18 -->18.0.0 to 18.3.1<!-- /umbraco-releases --> | `18.*` | .NET 10 |
-| 17 | <!-- umbraco-releases 17 -->17.0.0 to 17.8.1<!-- /umbraco-releases --> | `17.*` | .NET 10 |
+| 18 | <!-- umbraco-releases 18 -->18.0.0 to 18.3.2<!-- /umbraco-releases --> | `18.*` | .NET 10 |
+| 17 | <!-- umbraco-releases 17 -->17.0.0 to 17.8.2<!-- /umbraco-releases --> | `17.*` | .NET 10 |
 
 `UmbracoReleases` in
 [`Directory.Build.props`](https://github.com/auroris/UmbracoDisableTelemetry/blob/main/Directory.Build.props)

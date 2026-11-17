@@ -10,10 +10,10 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
-    <PackageProjectUrl>https://github.com/auroris/UmbracoDisableTelemetry</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/auroris/UmbracoDisableTelemetry</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/auroris/AurorisNet.Umbraco.DisableTelemetry</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/auroris/AurorisNet.Umbraco.DisableTelemetry</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageReleaseNotes>https://github.com/auroris/UmbracoDisableTelemetry/releases/tag/v$(Version)</PackageReleaseNotes>
+    <PackageReleaseNotes>https://github.com/auroris/AurorisNet.Umbraco.DisableTelemetry/releases/tag/v$(Version)</PackageReleaseNotes>
     <DebugType>embedded</DebugType>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <NuGetAuditMode>direct</NuGetAuditMode>

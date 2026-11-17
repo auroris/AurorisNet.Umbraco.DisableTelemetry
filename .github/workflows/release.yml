@@ -1,10 +1,20 @@
 name: Release
 
+run-name: Release${{ inputs.dry-run && ' (dry run)' || '' }}
+
+# Publishes the package to nuget.org and GitHub. Starts by hand, or from the New Umbraco releases workflow when a new
+# Umbraco release has passed the tests. The shared steps come from auroris/AurorisNet.Build, whose docs/releasing.md
+# describes them. nuget.org trusts this file by its name, so keep it release.yml, and keep the repository's tag rule
+# that stops v* tags from being moved or deleted: the version step counts past every existing tag.
 on:
   workflow_dispatch:
     inputs:
+      test:
+        description: Run the tests before publishing. The automated runs turn this off, because they have just run them.
+        type: boolean
+        default: true
       dry-run:
-        description: Choose the versions, build and pack only, and keep the packages as an artifact
+        description: Choose the versions, test and pack only, and keep the packages as an artifact
         type: boolean
         default: false
       notes:
@@ -16,28 +26,33 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release
   cancel-in-progress: false
 
 defaults:
   run:
     shell: pwsh
 
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+  TESTINGPLATFORM_TELEMETRY_OPTOUT: '1'
+
 jobs:
   release:
-    name: Build and publish
+    name: Test and publish
     runs-on: windows-latest
-    # The tests run before a release, locally or in the New Umbraco releases workflow, as the README's Developing
-    # section describes, so this job only builds and publishes.
     timeout-minutes: 30
     permissions:
       contents: write
       id-token: write
     env:
       PACKAGE_PROJECT: src/AurorisNet.Umbraco.DisableTelemetry.csproj
+      TEST_PROJECT: tests/AurorisNet.Umbraco.DisableTelemetry.Tests
       # Makes the build deterministic and, with Directory.Build.props, turns its warnings into errors.
       ContinuousIntegrationBuild: 'true'
     steps:
+      # The version step reads every release tag, so the checkout needs the full history.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.sha }}
@@ -50,17 +65,21 @@ jobs:
           dotnet-version: '10.0.x'
 
       # Each release publishes the same package once for each supported Umbraco major version, numbered after that major
-      # version's newest supported release, such as 18.3.1.2 and 17.8.1.1. The newest major version's comes first.
-      - name: Choose the package versions
+      # version's newest supported release, such as 18.3.2.1 and 17.8.2.1. The newest major version's comes first.
+      - name: Choose the versions
         id: version
-        env:
-          RELEASE_BRANCH: ${{ github.ref_name }}
-          RELEASE_COMMIT: ${{ github.sha }}
+        uses: auroris/AurorisNet.Build/actions/version@main
+        with:
+          scheme: umbraco
+          dry-run: ${{ inputs.dry-run }}
+
+      # The tests boot a real Umbraco site with SQLite, on the newest supported release. The other releases are tested
+      # on a developer's machine, as the README's Developing section describes.
+      - name: Test
+        if: ${{ inputs.test }}
         run: |
-          $releases = @(& .github/scripts/Get-ReleaseVersion.ps1 -BranchName $env:RELEASE_BRANCH -Commit $env:RELEASE_COMMIT)
-          $releases | Format-Table Umbraco, Version, Tag -AutoSize | Out-String | Write-Host
-          "versions=$($releases.Version -join ',')" >> $env:GITHUB_OUTPUT
-          "tags=$($releases.Tag -join ',')" >> $env:GITHUB_OUTPUT
+          dotnet test --project "$env:TEST_PROJECT" -c Release
+          if ($LASTEXITCODE -ne 0) { throw 'The tests failed.' }
 
       # Build each version on its own, so each package's assembly carries that package's version.
       - name: Build and pack
@@ -68,90 +87,15 @@ jobs:
           RELEASE_VERSIONS: ${{ steps.version.outputs.versions }}
         run: |
           foreach ($version in $env:RELEASE_VERSIONS.Split(',')) {
-            dotnet build "$env:PACKAGE_PROJECT" -c Release -p:Version=$version
+            dotnet build "$env:PACKAGE_PROJECT" -c Release "-p:Version=$version"
             if ($LASTEXITCODE -ne 0) { throw "Could not build $version." }
-            dotnet pack "$env:PACKAGE_PROJECT" -c Release --no-build -p:Version=$version -o artifacts/packages
+            dotnet pack "$env:PACKAGE_PROJECT" -c Release --no-build "-p:Version=$version" -o artifacts/packages
             if ($LASTEXITCODE -ne 0) { throw "Could not pack $version." }
           }
 
-      # A dry run ends here, with the packages a release of this commit would publish. Nothing is tagged or published.
-      - name: Keep the packages of a dry run
-        if: ${{ inputs.dry-run }}
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - name: Publish
+        uses: auroris/AurorisNet.Build/actions/publish@main
         with:
-          name: packages-${{ github.run_id }}
-          path: artifacts/packages/*.nupkg
-          if-no-files-found: error
-          retention-days: 7
-
-      # Reserve every tag before publishing any package, so a retried run reuses all of them.
-      - name: Reserve the release tags before publishing
-        if: ${{ !inputs.dry-run }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAGS: ${{ steps.version.outputs.tags }}
-          RELEASE_COMMIT: ${{ github.sha }}
-        run: |
-          foreach ($tag in $env:RELEASE_TAGS.Split(',')) {
-            $existing = git tag --list "$tag"
-            if ($LASTEXITCODE -ne 0) { throw 'Could not check release tags.' }
-            if (!$existing) {
-              gh api --method POST "repos/$env:GITHUB_REPOSITORY/git/refs" -f "ref=refs/tags/$tag" -f "sha=$env:RELEASE_COMMIT"
-              if ($LASTEXITCODE -ne 0) { throw "Could not reserve the release tag $tag." }
-            }
-          }
-
-      # nuget.org trusts the AurorisNet account, the repository auroris/UmbracoDisableTelemetry, this workflow's file name
-      # release.yml and no environment, so the repository holds no API key. Keep the file name, and keep the repository's
-      # tag rule that stops v* tags from being moved or deleted: the version step counts past every existing tag.
-      - name: Log in to NuGet with trusted publishing
-        if: ${{ !inputs.dry-run }}
-        id: nuget-login
-        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
-        with:
-          user: AurorisNet
-
-      - name: Publish to NuGet
-        if: ${{ !inputs.dry-run }}
-        env:
-          NUGET_API_KEY: ${{ steps.nuget-login.outputs.NUGET_API_KEY }}
-          RELEASE_VERSIONS: ${{ steps.version.outputs.versions }}
-        run: |
-          foreach ($version in $env:RELEASE_VERSIONS.Split(',')) {
-            dotnet nuget push "artifacts/packages/AurorisNet.Umbraco.DisableTelemetry.$version.nupkg" `
-              --source https://api.nuget.org/v3/index.json --api-key "$env:NUGET_API_KEY" --skip-duplicate
-            if ($LASTEXITCODE -ne 0) { throw "Could not publish $version to NuGet." }
-          }
-
-      # The newest major version's release gets the notes from the run and the generated list of changes. It becomes the
-      # latest release unless a newer one is published already, as when this run retries an older commit's release.
-      # Each other release points to it, since it publishes the same package under another version number.
-      - name: Publish the GitHub releases
-        if: ${{ !inputs.dry-run }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_VERSIONS: ${{ steps.version.outputs.versions }}
-          RELEASE_TAGS: ${{ steps.version.outputs.tags }}
-          RELEASE_NOTES: ${{ inputs.notes }}
-        run: |
-          $versions = $env:RELEASE_VERSIONS.Split(',')
-          $tags = $env:RELEASE_TAGS.Split(',')
-          for ($i = 0; $i -lt $versions.Count; $i++) {
-            $package = "artifacts/packages/AurorisNet.Umbraco.DisableTelemetry.$($versions[$i]).nupkg"
-            gh release view "$($tags[$i])" --json id 2>$null | Out-Null
-            if ($LASTEXITCODE -eq 0) {
-              gh release upload "$($tags[$i])" "$package" --clobber
-            } elseif ($i -eq 0) {
-              $latest = & .github/scripts/Test-LatestRelease.ps1 -Version $versions[$i]
-              $create = @('release', 'create', $tags[$i], $package, '--verify-tag', '--title', $versions[$i], '--generate-notes',
-                ($latest ? '--latest' : '--latest=false'))
-              # gh places these notes above the generated ones.
-              if ($env:RELEASE_NOTES) { $create += @('--notes', $env:RELEASE_NOTES) }
-              gh @create
-            } else {
-              $notes = "The same package as [$($versions[0])](https://github.com/$env:GITHUB_REPOSITORY/releases/tag/$($tags[0])), " +
-                "numbered for sites on Umbraco $($versions[$i].Split('.')[0]), which can float on ``$($versions[$i].Split('.')[0]).*``."
-              gh release create "$($tags[$i])" "$package" --verify-tag --title "$($versions[$i])" --notes "$notes" --latest=false
-            }
-            if ($LASTEXITCODE -ne 0) { throw "Could not publish the GitHub release $($tags[$i])." }
-          }
+          versions: ${{ steps.version.outputs.versions }}
+          dry-run: ${{ inputs.dry-run }}
+          notes: ${{ inputs.notes }}
