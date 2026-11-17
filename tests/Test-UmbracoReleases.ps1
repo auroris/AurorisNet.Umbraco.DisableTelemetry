@@ -65,9 +65,12 @@ $test = {
     $env:ASPNETCORE_ENVIRONMENT = 'Development'
     $assembly = Join-Path $folder "build/bin/AurorisNet.Umbraco.DisableTelemetry.Tests/$($configuration.ToLowerInvariant())/AurorisNet.Umbraco.DisableTelemetry.Tests.dll"
     $log = Join-Path $folder 'test.log'
-    dotnet $assembly --timeout 4m --show-live-output on *> $log
+    # On a CI runner the test platform colors its output even when it goes to a file, and a color code at the start of
+    # a line hides the summary counts from the patterns below. --no-ansi keeps the log plain; stripping any codes that
+    # remain keeps the counts readable should a later test platform write them anyway.
+    dotnet $assembly --timeout 4m --show-live-output on --no-ansi *> $log
     $exitCode = $LASTEXITCODE
-    $lines = Get-Content $log
+    $lines = @(Get-Content $log) -replace '\e\[[0-9;?]*[A-Za-z]', ''
     $counts = @($lines | Select-String -Pattern '^\s+(total|failed|succeeded|skipped): (\d+)')
     $failed = @($lines | Select-String -Pattern '^failed (.+?)( \(\d.*\))?$' | ForEach-Object { $_.Matches[0].Groups[1].Value })
     $ran = @($counts | Where-Object { $_.Matches[0].Groups[1].Value -eq 'succeeded' -and $_.Matches[0].Groups[2].Value -ne '0' }).Count -gt 0
